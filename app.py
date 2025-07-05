@@ -19,7 +19,7 @@ def fetch_poster(movie_id, retries=5, delay=3):
             print(f"Poster URL for Movie ID {movie_id} loaded from cache: {cached_url}")
             return cached_url
 
-    api_key = "fc06cf98a163206388def73a8995bd3a"
+    api_key = "45364a02607888489c6386324d19c"  # New API key hardcoded
     url = f"https://api.themoviedb.org/3/movie/{movie_id}?api_key={api_key}&language=en-US"
     
     for attempt in range(retries):
