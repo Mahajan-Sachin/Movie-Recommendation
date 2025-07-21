@@ -4,6 +4,10 @@ A movie recommendation system built using Python, Streamlit, and the TMDb API, l
 It recommends movies based on cosine similarity of features (genres, overview, cast, etc.) and displays posters using the TMDb API.
 
 ----
+<img width="1121" height="859" alt="image" src="https://github.com/user-attachments/assets/b69f64a6-bfef-4d2c-8c7e-ebe984869edb" />
+
+-----
+<img width="1170" height="848" alt="image" src="https://github.com/user-attachments/assets/86a8e7fc-673a-4714-b244-6fe0839ffc55" />
 
 ## 📌 Features
 
