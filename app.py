@@ -11,65 +11,39 @@ if not os.path.exists("poster_cache"):
 
 # Function to fetch movie poster using TMDb API with caching
 def fetch_poster(movie_id, retries=5, delay=3):
-    # Check if poster is already cached
     cache_file = f"poster_cache/{movie_id}.txt"
     if os.path.exists(cache_file):
         with open(cache_file, "r") as f:
-            cached_url = f.read().strip()
-            print(f"Poster URL for Movie ID {movie_id} loaded from cache: {cached_url}")
-            return cached_url
+            return f.read().strip()
 
-    api_key = "45364a02607888489c6386324d19c"  # New API key hardcoded
+    api_key = "45364a02607888489c6386324d19c"
     url = f"https://api.themoviedb.org/3/movie/{movie_id}?api_key={api_key}&language=en-US"
     
     for attempt in range(retries):
         try:
             response = requests.get(url, timeout=10)
-            print(f"Request URL: {url}")
-            print(f"Status Code: {response.status_code}")
-            
-            if response.status_code == 404:
-                print(f"Movie ID {movie_id} not found in TMDb database.")
-                return "https://via.placeholder.com/500x750?text=Movie+Not+Found"
-            
-            if response.status_code == 401:
-                print("Error: Invalid API Key. Please check your TMDb API key.")
+            print(f"Attempt {attempt+1}: Status {response.status_code} for Movie ID {movie_id}")
+            if response.status_code == 200:
+                data = response.json()
+                poster_path = data.get('poster_path')
+                if poster_path:
+                    full_poster_url = f"https://image.tmdb.org/t/p/w500/{poster_path}"
+                    with open(cache_file, "w") as f:
+                        f.write(full_poster_url)
+                    return full_poster_url
+                return "https://via.placeholder.com/500x750?text=No+Poster"
+            elif response.status_code == 401:
+                print("Invalid API Key")
                 return "https://via.placeholder.com/500x750?text=Invalid+API+Key"
-            
-            if response.status_code == 429:
-                print("Error: Too many requests. TMDb API rate limit exceeded. Waiting...")
+            elif response.status_code == 429:
+                print("Rate limit hit, waiting...")
                 time.sleep(10)
-                continue
-            
-            response.raise_for_status()
-            data = response.json()
-            print(f"Response Data for Movie ID {movie_id}: {data}")
-            
-            poster_path = data.get('poster_path')
-            if poster_path:
-                full_poster_url = f"https://image.tmdb.org/t/p/w500/{poster_path}"
-                print(f"Poster URL for Movie ID {movie_id}: {full_poster_url}")
-                # Cache the poster URL
-                with open(cache_file, "w") as f:
-                    f.write(full_poster_url)
-                return full_poster_url
             else:
-                print(f"No poster available for Movie ID {movie_id}.")
-                return "https://via.placeholder.com/500x750?text=No+Poster+Available"
-                
-        except requests.exceptions.Timeout:
-            print(f"Timeout error for Movie ID {movie_id}. Retrying ({attempt+1}/{retries})...")
+                print(f"Unexpected status: {response.status_code}")
+                time.sleep(delay)
+        except requests.RequestException as e:
+            print(f"Error: {e}, retrying in {delay}s...")
             time.sleep(delay)
-            continue
-        except requests.exceptions.ConnectionError as e:
-            print(f"Connection error for Movie ID {movie_id}: {str(e)}. Retrying ({attempt+1}/{retries})...")
-            time.sleep(delay)
-            continue
-        except Exception as e:
-            print(f"Error fetching poster for Movie ID {movie_id}: {str(e)}")
-            return "https://via.placeholder.com/500x750?text=Error+Loading+Poster"
-    
-    print(f"Failed to fetch poster for Movie ID {movie_id} after {retries} retries.")
     return "https://via.placeholder.com/500x750?text=Failed+After+Retries"
 
 # Load the dictionary and similarity matrix
@@ -95,12 +69,9 @@ st.title("Movie Recommender System")
 st.write("Testing image display with a sample URL:")
 test_image_url = "https://via.placeholder.com/500x750?text=Test+Image"
 try:
-    st.image(test_image_url, use_column_width=True)
+    st.image(test_image_url, width=500)
 except Exception as e:
     st.error(f"Error displaying test image: {str(e)}")
-
-# Network stability warning
-st.warning("If posters are not loading, it might be due to a network issue. Please ensure a stable internet connection.")
 
 # Dropdown for selecting a movie
 selected_movie_name = st.selectbox(
@@ -116,7 +87,6 @@ def recommend(movie):
     
     movie_index = matching_movies.index[0]
     distances = similarity[movie_index]
-    # Take top 3 movies including the selected movie (index 0)
     movie_list = sorted(list(enumerate(distances)), reverse=True, key=lambda x: x[1])[0:3]
     
     recommended_movies = []
@@ -127,7 +97,7 @@ def recommend(movie):
         movie_id = movies.iloc[i[0]]['id']
         poster_url = fetch_poster(movie_id)
         recommended_posters.append(poster_url)
-        time.sleep(2)  # Reduced delay to optimize speed
+        time.sleep(2)
     
     return recommended_movies, recommended_posters
 
@@ -140,13 +110,20 @@ if st.button('Recommend'):
     
     st.write("Recommended Movies:")
     
+    # Check if all posters are placeholders
+    all_placeholders = all("via.placeholder.com" in p for p in posters)
+    
+    if all_placeholders:
+        st.warning("If posters are not loading, it might be due to a network issue. Please ensure a stable internet connection.")
+    
+    # Use columns with adjusted layout
     cols = st.columns(3)
     for idx, (movie, poster) in enumerate(zip(recommendations, posters)):
-        col = cols[idx % 3]
-        with col:
-            st.text(movie)
+        with cols[idx % 3]:
+            st.text(movie)  # Display movie title
+            st.write("")   # Add a blank line for spacing
             try:
-                st.image(poster, use_column_width=True)
+                st.image(poster, width=300)  # Removed height parameter
             except Exception as e:
                 st.error(f"Error displaying image for {movie}: {str(e)}")
-                st.image("https://via.placeholder.com/500x750?text=Image+Not+Available", use_column_width=True)
+                st.image("https://via.placeholder.com/300x450?text=Image+Not+Available", width=300)
